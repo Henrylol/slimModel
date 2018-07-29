@@ -19,6 +19,10 @@ def bn_act_conv_drp(current, num_outputs, kernel_size, scope='block'):
     current = slim.dropout(current, scope=scope + '_dropout')
     return current
 
+def pre_conv_pool(scope='pre_scope')
+	net = slim.conv2d(images, 2 * growth, [7, 7], stride=2, scope=end_point)
+    net = slim.max_pool2d(net, [3, 3], stride=2,padding = 'SAME', scope=end_point)	
+	return net 
 
 def block(net, layers, growth, scope='block'):
     for idx in range(layers):
@@ -29,7 +33,12 @@ def block(net, layers, growth, scope='block'):
         net = tf.concat(axis=3, values=[net, tmp])
     return net
 
-
+def transition_block(net,scope='trans_block'):
+	net = slim.batch_norm(current, scope=scope + '_bn')	
+	net = slim.conv2d(net, reduce_dim(net), [1, 1],scope=(scope+"_conv"))
+    net = slim.avg_pool2d(net, [2, 2], stride=2, scope=(scope+"_pool"))
+	return net
+	
 def densenet(images, num_classes=1001, is_training=False,
              dropout_keep_prob=0.8,
              scope='densenet'):
@@ -60,12 +69,9 @@ def densenet(images, num_classes=1001, is_training=False,
     with tf.variable_scope(scope, 'DenseNet', [images, num_classes]):
         with slim.arg_scope(bn_drp_scope(is_training=is_training,
                                          keep_prob=dropout_keep_prob)) as ssc:
-            end_point = 'conv_before_block'
-            net = slim.conv2d(images, 2 * growth, [7, 7], stride=2, scope=end_point)
-            end_points[end_point] = net
-
-            end_point = 'maxpool_before_block'
-            net = slim.max_pool2d(net, [3, 3], stride=2,padding = 'SAME', scope=end_point)
+            #convolution before block
+			end_point = 'conv_before_block'
+            net = pre_conv_pool(scope=end_point)
             end_points[end_point] = net
 
             #Dense block 1
@@ -73,44 +79,40 @@ def densenet(images, num_classes=1001, is_training=False,
             net = block(net, 6, growth, scope=end_point)
             end_points[end_point] = net
 
-            # Transaction Layer 1
-
+            #Transaction Layer 1
             end_point = 'transition1'
-            net = bn_act_conv_drp(net, reduce_dim(net), [1, 1], scope=end_point)
-            net = slim.avg_pool2d(net, [2, 2], stride=2, scope=end_point)
+            net = transition_block(net,end_point)
             end_points[end_point] = net
 
-            # Dense block 2
+            #Dense block 2
             end_point = 'block2'
             net = block(net, 12, growth, scope=end_point)
             end_points[end_point] = net
 
-            # Transaction Layer 2
+            #Transaction Layer 2
             end_point = 'transition2'
-            net = bn_act_conv_drp(net, reduce_dim(net), [1, 1], scope=end_point)
-            net = slim.avg_pool2d(net, [2, 2], stride=2, scope=end_point)
+			net = transition_block(net,end_point)
             end_points[end_point] = net
 
-            # Dense block 3
+            #Dense block 3
             end_point = 'block3'
             net = block(net, 24, growth, scope=end_point)
             end_points[end_point] = net
 
-            # Transaction Layer 3
-            # 1*1 conv2d
+            #Transaction Layer 3
             end_point = 'transition3'
-            net = bn_act_conv_drp(net, reduce_dim(net), [1, 1], scope=end_point)
-            net = slim.avg_pool2d(net, [2, 2], stride=2, scope=end_point)
+            net = transition_block(net,end_point)
             end_points[end_point] = net
 
             # Dense block 4
             end_point = 'block4'
-            net = block(net, 24, growth, scope=end_point)
+            net = block(net, 16, growth, scope=end_point)
             end_points[end_point] = net
 
             # Global average pooling.
-            net = tf.reduce_mean(net, [1, 2], keep_dims=True, name='GlobalPool')
-            end_points['global_pool'] = net
+			end_point = 'global_pool'
+            net = slim.avg_pool2d(net, net.shape[1:3], scope=end_point)
+            end_points[end_point] = net
 
             net = slim.conv2d(net, num_classes, [1, 1], scope='logits')
             logits = tf.squeeze(net, [1, 2], name='SpatialSqueeze')
