@@ -19,10 +19,10 @@ def bn_act_conv_drp(current, num_outputs, kernel_size, scope='block'):
     current = slim.dropout(current, scope=scope + '_dropout')
     return current
 
-def pre_conv_pool(scope='pre_scope'):
-	net = slim.conv2d(images, 2 * growth, [7, 7], stride=2, scope=scope+'_conv')
-    net = slim.max_pool2d(net, [3, 3], stride=2,padding = 'SAME', scope=scope+'_pool2d')	
-	return net 
+def pre_conv_pool(net,scope='pre_scope'):
+	net = slim.conv2d(net, 2 * growth, [7, 7], stride=2,scope=scope+'_conv')
+    net = slim.max_pool2d(net, [3, 3], stride=2,padding = 'SAME',scope=scope+'_pool2d')
+    return net
 
 def block(net, layers, growth, scope='block'):
     for idx in range(layers):
@@ -69,9 +69,10 @@ def densenet(images, num_classes=1001, is_training=False,
     with tf.variable_scope(scope, 'DenseNet', [images, num_classes]):
         with slim.arg_scope(bn_drp_scope(is_training=is_training,
                                          keep_prob=dropout_keep_prob)) as ssc:
+			net = images							 
             #convolution before block
 			end_point = 'conv_before_block'
-            net = pre_conv_pool(scope=end_point)
+            net = pre_conv_pool(net,scope=end_point)
             end_points[end_point] = net
 
             #Dense block 1
