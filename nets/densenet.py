@@ -116,14 +116,14 @@ def densenet(images, num_classes=1001, is_training=False,
             net = slim.avg_pool2d(net, net.shape[1:3], scope=end_point)
             end_points[end_point] = net
 
-            net = slim.conv2d(net, num_classes, [1, 1], scope='logits')
-            logits = tf.squeeze(net, [1, 2], name='SpatialSqueeze')
+            net = slim.flatten(net, scope='Flatten')
+            end_points['Flatten'] = net
 
-            end_points['Logits'] = logits
-            end_points['predictions'] = slim.softmax(logits, scope='predictions')
+            logits = slim.fully_connected(net, num_classes, activation_fn=None,scope='Logits')
+            end_points['logits'] = logits
+            end_points['Predictions'] = tf.nn.softmax(logits, name='Predictions')
 
-
-    return logits, end_points
+        return logits, end_points
 
 
 def bn_drp_scope(is_training=True, keep_prob=0.8):
