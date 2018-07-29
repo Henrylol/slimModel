@@ -19,8 +19,8 @@ def bn_act_conv_drp(current, num_outputs, kernel_size, scope='block'):
     current = slim.dropout(current, scope=scope + '_dropout')
     return current
 
-def pre_conv_pool(net,scope='pre_scope'):
-	net = slim.conv2d(net, 2 * growth, [7, 7], stride=2,scope=scope+'_conv')
+def pre_conv_pool(net,growth,scope='pre_scope'):
+    net = slim.conv2d(net, 2 * growth, [7, 7], stride=2,scope=scope+'_conv')
     net = slim.max_pool2d(net, [3, 3], stride=2,padding = 'SAME',scope=scope+'_pool2d')
     return net
 
@@ -33,11 +33,6 @@ def block(net, layers, growth, scope='block'):
         net = tf.concat(axis=3, values=[net, tmp])
     return net
 
-def transition_block(net,scope='trans_block'):
-	net = slim.batch_norm(current, scope=scope + '_bn')	
-	net = slim.conv2d(net, reduce_dim(net), [1, 1],scope=(scope+"_conv"))
-    net = slim.avg_pool2d(net, [2, 2], stride=2, scope=(scope+"_pool"))
-	return net
 	
 def densenet(images, num_classes=1001, is_training=False,
              dropout_keep_prob=0.8,
@@ -64,15 +59,21 @@ def densenet(images, num_classes=1001, is_training=False,
     def reduce_dim(input_feature):
         return int(int(input_feature.shape[-1]) * compression_rate)
 
+    def transition_block(net, scope='trans_block'):
+        net = slim.batch_norm(net, scope=scope + '_bn')
+        net = slim.conv2d(net, reduce_dim(net), [1, 1], scope=(scope + "_conv"))
+        net = slim.avg_pool2d(net, [2, 2], stride=2, scope=(scope + "_pool"))
+        return net
+
     end_points = {}
 
     with tf.variable_scope(scope, 'DenseNet', [images, num_classes]):
         with slim.arg_scope(bn_drp_scope(is_training=is_training,
                                          keep_prob=dropout_keep_prob)) as ssc:
-			net = images							 
-            #convolution before block
-			end_point = 'conv_before_block'
-            net = pre_conv_pool(net,scope=end_point)
+            # Pre convolution Pool Layer
+            net = images
+            end_point = 'conv_before_block'
+            net = pre_conv_pool(net,growth,scope=end_point)
             end_points[end_point] = net
 
             #Dense block 1
@@ -92,7 +93,7 @@ def densenet(images, num_classes=1001, is_training=False,
 
             #Transaction Layer 2
             end_point = 'transition2'
-			net = transition_block(net,end_point)
+            net = transition_block(net,end_point)
             end_points[end_point] = net
 
             #Dense block 3
@@ -111,7 +112,7 @@ def densenet(images, num_classes=1001, is_training=False,
             end_points[end_point] = net
 
             # Global average pooling.
-			end_point = 'global_pool'
+            end_point = 'global_pool'
             net = slim.avg_pool2d(net, net.shape[1:3], scope=end_point)
             end_points[end_point] = net
 
