@@ -33,7 +33,7 @@ def block(net, layers, growth, scope='block'):
         net = tf.concat(axis=3, values=[net, tmp])
     return net
 
-	
+
 def densenet(images, num_classes=1001, is_training=False,
              dropout_keep_prob=0.8,
              scope='densenet'):
@@ -72,52 +72,63 @@ def densenet(images, num_classes=1001, is_training=False,
                                          keep_prob=dropout_keep_prob)) as ssc:
             # Pre convolution Pool Layer
             net = images
+            print("images shape ",images.shape)
             end_point = 'conv_before_block'
             net = pre_conv_pool(net,growth,scope=end_point)
             end_points[end_point] = net
+            print("pre shape ",net.shape)
 
             #Dense block 1
             end_point = 'block1'
             net = block(net, 6, growth, scope=end_point)
             end_points[end_point] = net
+            print("block1 shape ",net.shape)
 
             #Transaction Layer 1
             end_point = 'transition1'
             net = transition_block(net,end_point)
             end_points[end_point] = net
+            print("transition1 shape ",net.shape)
 
             #Dense block 2
             end_point = 'block2'
             net = block(net, 12, growth, scope=end_point)
             end_points[end_point] = net
+            print("block2 shape ",net.shape)
 
             #Transaction Layer 2
             end_point = 'transition2'
             net = transition_block(net,end_point)
             end_points[end_point] = net
+            print("transition1 shape ",net.shape)
 
             #Dense block 3
             end_point = 'block3'
             net = block(net, 24, growth, scope=end_point)
             end_points[end_point] = net
+            print("block3 shape ",net.shape)
 
             #Transaction Layer 3
             end_point = 'transition3'
             net = transition_block(net,end_point)
             end_points[end_point] = net
+            print("transition3 shape ",net.shape)
 
             # Dense block 4
             end_point = 'block4'
             net = block(net, 16, growth, scope=end_point)
             end_points[end_point] = net
+            print("block4 shape ",net.shape)
 
             # Global average pooling.
             end_point = 'global_pool'
             net = slim.avg_pool2d(net, net.shape[1:3], scope=end_point)
             end_points[end_point] = net
+            print("global_pool shape ",net.shape)
 
             net = slim.flatten(net, scope='Flatten')
             end_points['Flatten'] = net
+            print("flatten shape ",net.shape)
 
             logits = slim.fully_connected(net, num_classes, activation_fn=None,scope='Logits')
             end_points['logits'] = logits
